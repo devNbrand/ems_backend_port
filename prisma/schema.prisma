@@ -1,0 +1,112 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                Int      @id @default(autoincrement()) 
+  email             String   @unique
+  username          String?
+  password          String
+  tasksCompleted    Int      @default(0)
+  totalHoursWorked  Int      @default(0)
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+  tasksTo           Task[]   @relation("AssignedTo")
+  tasksBy           Task[]   @relation("AssignedBy")
+  break             Break[]  @relation("Break")
+  availabilityHours AvailabilityHours[] @relation("UserAvailability") 
+  workingHours      WorkingHours[] @relation("Working Hours")
+}
+
+model Task {
+  id          Int         @id @default(autoincrement())
+  title       String
+  description String
+  assignedTo  User?       @relation("AssignedTo", fields: [assignedToId], references: [id])
+  assignedToId Int?       // Changed from String? to Int?
+  assignedBy  User?       @relation("AssignedBy", fields: [assignedById], references: [id])
+  assignedById Int?       // Changed from String? to Int?
+  status      TaskStatus  @default(PENDING)
+  priority    TaskPriority @default(MEDIUM)
+  deadline    DateTime
+  hoursWorked Int         @default(0)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  
+}
+
+model AvailabilityHours {
+  id             Int             @id @default(autoincrement())
+  user           User            @relation("UserAvailability",fields: [userId], references: [id])
+  userId         Int
+  date           DateTime
+  availableTimes AvailableTime[] 
+  notes          String?         // Optional notes about availability
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+}
+
+model AvailableTime {
+  id                 Int               @id @default(autoincrement())
+  availabilityHours  AvailabilityHours @relation(fields: [availabilityHoursId], references: [id],onDelete: Cascade)
+  availabilityHoursId Int
+  startTime          DateTime
+  endTime            DateTime
+}
+model Break {
+  id          Int       @id @default(autoincrement())
+  user        User      @relation("Break",fields: [userId], references: [id]) // Reference to the User model
+  userId      Int       // Foreign key to the User model
+  breakStart  DateTime   // Start time of the break
+  breakEnd    DateTime? // End time of the break (optional)
+  duration     Int       @default(0) // Calculated break duration in minutes
+  breakType   BreakType @default(OTHER) // Type of break (e.g., lunch, short, other)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+
+model WorkingHours {
+  id          Int          @id @default(autoincrement())
+  user        User         @relation("Working Hours",fields: [userId], references: [id]) // Reference to the User model
+  userId      Int          // Foreign key to the User model
+  date        DateTime    // Required to track working hours for a specific date
+  workSessions WorkSession[] // Relation to WorkSession model
+
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model WorkSession {
+  id          Int          @id @default(autoincrement())
+  startTime   DateTime     // Required to track when work starts
+  endTime     DateTime      // Required to track when work ends
+  workingHours WorkingHours @relation(fields: [workingHoursId], references: [id])
+  workingHoursId Int       // Foreign key to the WorkingHours model
+}
+
+// Ensure that the User model is defined in your schema
+
+enum BreakType {
+  LUNCH
+  SHORT
+  OTHER
+}
+
+
+enum TaskStatus {
+  PENDING
+  STARTED 
+  COMPLETED
+}
+
+enum TaskPriority {
+  LOW       // Added LOW to the enum
+  MEDIUM    // This was already defined
+  HIGH      // Added HIGH to the enum
+}
